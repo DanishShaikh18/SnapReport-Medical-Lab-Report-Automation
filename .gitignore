@@ -5,4 +5,4 @@ PLAN.md
 venv
 test_key.py
 
-/templates
+templates\
