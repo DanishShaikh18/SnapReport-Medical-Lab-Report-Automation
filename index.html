@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnapReport</title>
+<style>
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F1F3F4; color: #202124; min-height: 100vh; }
+
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+:root {
+  --red:        #C0392B;
+  --red-bg:     #FDEDEC;
+  --teal:       #0D7377;
+  --teal-dark:  #0A5457;
+  --teal-bg:    #E8F5F5;
+  --amber:      #F39C12;
+  --amber-bg:   #FEF9E7;
+  --green:      #1A7A4A;
+  --green-bg:   #EAFAF1;
+  --gray-50:    #F8F9FA;
+  --gray-100:   #F1F3F4;
+  --gray-200:   #E8EAED;
+  --gray-400:   #9AA0A6;
+  --gray-600:   #5F6368;
+  --gray-800:   #3C4043;
+  --white:      #FFFFFF;
+  --radius:     8px;
+  --shadow:     0 1px 4px rgba(0,0,0,.08), 0 2px 12px rgba(0,0,0,.05);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.header {
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  height: 54px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-box {
+  width: 30px; height: 30px;
+  background: var(--red);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-box svg { width: 17px; height: 17px; fill: white; }
+.logo-text { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
+.logo-text span { color: var(--red); }
+
+/* Header right area */
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-tag {
+  font-size: 11px; font-weight: 500;
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid #A9DFBF;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* Key status indicator */
+.key-status {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 500;
+  color: var(--gray-600);
+}
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.green { background: var(--green); }
+.status-dot.red   { background: var(--red); }
+
+/* Settings gear button */
+.settings-btn {
+  background: none; border: none;
+  width: 32px; height: 32px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--gray-600);
+  transition: background .15s, color .15s;
+}
+.settings-btn:hover {
+  background: var(--gray-100);
+  color: var(--gray-800);
+}
+.settings-btn svg { width: 18px; height: 18px; }
+
+/* ── Settings modal ─────────────────────────────────────────────────────── */
+.settings-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.35);
+  z-index: 1000;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+.settings-overlay.open { opacity: 1; pointer-events: auto; }
+.settings-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(.95);
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  z-index: 1001;
+  width: 420px; max-width: 92vw;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.settings-modal.open {
+  opacity: 1; pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+.settings-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px 12px;
+  border-bottom: 1px solid var(--gray-200);
+}
+.settings-title { font-size: 15px; font-weight: 600; }
+.settings-close {
+  background: none; border: none;
+  font-size: 18px; color: var(--gray-400);
+  cursor: pointer; padding: 4px;
+  line-height: 1;
+}
+.settings-close:hover { color: var(--gray-800); }
+.settings-body { padding: 20px 22px 22px; }
+.settings-label {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--gray-400);
+  margin-bottom: 6px;
+}
+.settings-input {
+  width: 100%;
+  border: 1px solid var(--gray-200); border-radius: 6px;
+  padding: 9px 12px; font-size: 13px;
+  font-family: 'Courier New', monospace;
+  outline: none; transition: border-color .2s;
+}
+.settings-input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(13,115,119,.08);
+}
+.settings-note {
+  font-size: 11px; color: var(--gray-400); margin-top: 6px;
+}
+.settings-note a { color: var(--teal); }
+.settings-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  margin-top: 16px;
+}
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--gray-800);
+  color: white;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 13px; font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,.18);
+  opacity: 0;
+  transition: opacity .25s, transform .25s;
+  z-index: 2000;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.app { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+
+/* ── Step bar ───────────────────────────────────────────────────────────── */
+.steps {
+  display: flex;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.step-bar {
+  flex: 1;
+  display: flex; align-items: center; gap: 9px;
+  padding: 13px 18px;
+  font-size: 13px; font-weight: 500;
+  color: var(--gray-400);
+  border-right: 1px solid var(--gray-200);
+  transition: background .2s, color .2s;
+}
+.step-bar:last-child { border-right: none; }
+.step-bar.active { color: var(--teal); background: var(--teal-bg); }
+.step-bar.done   { color: var(--green); background: var(--green-bg); }
+.step-num {
+  width: 21px; height: 21px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  flex-shrink: 0;
+}
+.step-bar.done .step-num { background: var(--green); color: white; border-color: var(--green); }
+.step-bar.done .step-num .n { display: none; }
+.step-bar.done .step-num::after { content: '✓'; }
+
+/* ── Card ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+.card-head {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--gray-200);
+}
+.card-title { font-size: 15px; font-weight: 600; }
+.card-sub   { font-size: 12px; color: var(--gray-600); margin-top: 3px; }
+.card-body  { padding: 22px; }
+
+/* ── Upload zone ────────────────────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--gray-200);
+  border-radius: var(--radius);
+  padding: 44px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--gray-50);
+  position: relative;
+  transition: border-color .2s, background .2s;
+}
+.upload-zone:hover, .upload-zone.drag {
+  border-color: var(--teal);
+  background: var(--teal-bg);
+}
+.upload-zone input {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer;
+  width: 100%; height: 100%;
+}
+.upload-icon {
+  width: 46px; height: 46px;
+  background: var(--gray-100);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px;
+}
+.upload-icon svg { width: 22px; height: 22px; stroke: var(--gray-400); fill: none; stroke-width: 1.5; }
+.upload-title { font-size: 14px; font-weight: 600; color: var(--gray-800); margin-bottom: 5px; }
+.upload-sub   { font-size: 12px; color: var(--gray-400); }
+
+.upload-preview { display: none; text-align: center; }
+.upload-preview img {
+  max-height: 300px; max-width: 100%;
+  border-radius: 6px; border: 1px solid var(--gray-200);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 6px;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; border: none; transition: background .2s, opacity .2s;
+}
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary  { background: var(--teal);  color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--teal-dark); }
+.btn-success  { background: var(--green); color: white; }
+.btn-success:hover { background: #155a38; }
+.btn-outline  { background: white; color: var(--gray-600); border: 1px solid var(--gray-200); }
+.btn-outline:hover { border-color: var(--teal); color: var(--teal); }
+.btn-sm { padding: 6px 13px; font-size: 12px; }
+.btn-row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+/* ── Patient form ───────────────────────────────────────────────────────── */
+.patient-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--gray-400);
+}
+.field input, .field select {
+  border: 1px solid var(--gray-200); border-radius: 6px;
+  padding: 8px 11px; font-size: 13px; color: #202124;
+  outline: none; transition: border-color .2s;
+  background: white;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(13,115,119,.08);
+}
+
+/* ── Readings table ─────────────────────────────────────────────────────── */
+.readings-table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+.readings-table th {
+  text-align: left;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--gray-400);
+  padding: 8px 11px;
+  border-bottom: 2px solid var(--gray-200);
+}
+.readings-table td {
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 13px; vertical-align: middle;
+}
+.readings-table tr:last-child td { border-bottom: none; }
+.readings-table tr:hover td { background: var(--gray-50); }
+.section-row td {
+  background: var(--gray-50);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--gray-600);
+  padding: 7px 11px;
+}
+.test-name   { font-weight: 500; color: var(--gray-800); }
+.test-method { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+.muted       { color: var(--gray-600); }
+
+.value-input {
+  width: 88px; text-align: right;
+  border: 1px solid var(--gray-200); border-radius: 6px;
+  padding: 5px 9px; font-size: 13px; font-weight: 600;
+  outline: none; transition: border-color .2s;
+}
+.value-input:focus   { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(13,115,119,.08); }
+.value-input.low-conf { border-color: var(--amber); background: var(--amber-bg); }
+.value-input.abnormal { border-color: var(--red);   background: var(--red-bg); }
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px;
+}
+.badge-normal    { background: var(--green-bg); color: var(--green); }
+.badge-high      { background: var(--red-bg);   color: var(--red); }
+.badge-low       { background: #EBF5FB;          color: #1A5276; }
+.badge-conf-ok   { background: var(--green-bg); color: var(--green); }
+.badge-conf-warn { background: var(--amber-bg); color: #9A6B00; }
+.badge-conf-err  { background: var(--red-bg);   color: var(--red); }
+
+/* ── Alerts ─────────────────────────────────────────────────────────────── */
+.alert {
+  padding: 11px 15px; border-radius: 6px;
+  font-size: 13px; margin-bottom: 12px;
+}
+.alert-amber { background: var(--amber-bg); color: #7D5D00; border: 1px solid #F9CA74; }
+.alert-red   { background: var(--red-bg);   color: var(--red); border: 1px solid #F1948A; }
+.warn        { color: var(--amber); font-weight: 600; }
+.danger      { color: var(--red);   font-weight: 600; }
+.error-msg   { color: var(--red); font-size: 14px; margin-bottom: 14px; }
+
+/* ── Loading ────────────────────────────────────────────────────────────── */
+.loading-state { text-align: center; padding: 48px 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 38px; height: 38px;
+  border: 3px solid var(--gray-200);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  margin: 0 auto 14px;
+  animation: spin .8s linear infinite;
+}
+.loading-title { font-size: 14px; font-weight: 600; color: var(--gray-800); margin-bottom: 5px; }
+.loading-sub   { font-size: 12px; color: var(--gray-400); }
+
+/* ── Section visibility ─────────────────────────────────────────────────── */
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── Report preview ─────────────────────────────────────────────────────── */
+.report-wrapper {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 32px;
+}
+
+/* Report internals — also used by print */
+.rpt-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.rpt-lab-name  { font-size: 22px; font-weight: 700; }
+.rpt-lab-sub   { font-size: 10px; color: #666; }
+.rpt-right-info { font-size: 11px; color: #666; text-align: right; }
+.rpt-title-bar {
+  color: white; text-align: center;
+  font-size: 13px; font-weight: 700; letter-spacing: 2px;
+  padding: 7px; margin-bottom: 11px; border-radius: 3px;
+}
+.rpt-patient-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border: 1px solid #ddd; border-radius: 3px;
+  overflow: hidden; margin-bottom: 11px;
+}
+.rpt-patient-row {
+  display: flex; gap: 8px;
+  padding: 5px 12px; border-bottom: 1px solid #eee;
+  font-size: 11px;
+}
+.rpt-patient-row:last-child { border-bottom: none; }
+.rpt-label { color: #666; min-width: 110px; }
+.rpt-value { font-weight: 600; color: #222; }
+.rpt-table { width: 100%; border-collapse: collapse; border: 1px solid #ddd; font-size: 11px; }
+.rpt-table th {
+  background: #f8f9fa;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  padding: 7px 10px; border: 1px solid #ddd; text-align: left;
+}
+.rpt-table td { padding: 5px 10px; border: 1px solid #eee; vertical-align: top; }
+.rpt-group-header td { background: #f8f9fa; font-weight: 700; font-size: 11px; }
+.rpt-method    { font-size: 9px; color: #888; display: block; }
+.rpt-val       { text-align: right; font-weight: 500; }
+.rpt-abnormal  { color: #C0392B; font-weight: 700; }
+.rpt-center    { text-align: center; }
+.rpt-footer    { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 18px; font-size: 10px; color: #888; }
+.rpt-sign      { text-align: right; }
+.rpt-sign-name { font-size: 12px; font-weight: 700; color: #222; }
+.rpt-sign-title{ font-size: 10px; color: #666; }
+.rpt-page-num  { text-align: right; font-size: 10px; color: #aaa; margin-top: 6px; }
+
+/* ── Print ──────────────────────────────────────────────────────────────── */
+@media print {
+  .header, .steps, #step1, #step2, .card-head .btn, .btn-row,
+  .settings-overlay, .settings-modal, .toast { display: none !important; }
+  body { background: white; }
+  .app { padding: 0; max-width: 100%; }
+  #step3 { display: block !important; }
+  .report-wrapper { border: none; padding: 0; box-shadow: none; }
+  .card { border: none; box-shadow: none; }
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .patient-form { grid-template-columns: 1fr 1fr; }
+  .step-bar span.label { display: none; }
+  .header { padding: 0 16px; }
+  .app { padding: 16px 12px; }
+  .key-status span:not(.status-dot) { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-box">
+    <svg viewBox="0 0 24 24"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 3a1 1 0 0 1 1 1v3h3a1 1 0 0 1 0 2h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V7a1 1 0 0 1 1-1z"/></svg>
+  </div>
+  <span class="logo-text">Snap<span>Report</span></span>
+
+  <div class="header-right">
+    <span class="header-tag">● Gemini 2.5 Flash</span>
+    <div class="key-status">
+      <span class="status-dot red" id="keyStatusDot"></span>
+      <span id="keyStatusLabel">No API key</span>
+    </div>
+    <button class="settings-btn" id="settingsBtn" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- Settings modal overlay -->
+<div class="settings-overlay" id="settingsOverlay"></div>
+<div class="settings-modal" id="settingsModal">
+  <div class="settings-head">
+    <span class="settings-title">Settings</span>
+    <button class="settings-close" id="settingsClose">✕</button>
+  </div>
+  <div class="settings-body">
+    <div class="settings-label">Gemini API Key</div>
+    <input type="password" class="settings-input" id="settingsApiKey" placeholder="Paste your API key here" autocomplete="off">
+    <div class="settings-note">
+      Free at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>
+      — stored in this browser session only
+    </div>
+    <div class="settings-actions">
+      <button class="btn btn-outline btn-sm" id="settingsClose2" onclick="document.getElementById('settingsClose').click()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="settingsSave">Save key</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- Step bar -->
+  <div class="steps">
+    <div class="step-bar active" id="step1-bar">
+      <div class="step-num"><span class="n">1</span></div>
+      <span class="label">Upload image</span>
+    </div>
+    <div class="step-bar" id="step2-bar">
+      <div class="step-num"><span class="n">2</span></div>
+      <span class="label">Verify readings</span>
+    </div>
+    <div class="step-bar" id="step3-bar">
+      <div class="step-num"><span class="n">3</span></div>
+      <span class="label">Generate report</span>
+    </div>
+  </div>
+
+  <!-- ── Step 1: Upload ──────────────────────────────────────────────────── -->
+  <div class="section active" id="step1">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Upload lab image</div>
+        <div class="card-sub">Photo of machine screen or existing printed report</div>
+      </div>
+      <div class="card-body">
+
+        <!-- Upload zone -->
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept="image/*">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 21V9"/>
+            </svg>
+          </div>
+          <div class="upload-title">Drop image here or click to browse</div>
+          <div class="upload-sub">JPG · PNG · WEBP — machine screen or printed report</div>
+        </div>
+
+        <!-- Preview -->
+        <div class="upload-preview" id="uploadPreview">
+          <img id="previewImg" src="" alt="Preview">
+          <div style="margin-top:10px;">
+            <button class="btn btn-outline btn-sm" onclick="resetUpload()">↩ Change image</button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="startExtraction()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+            Extract readings
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Step 2: Verify ─────────────────────────────────────────────────── -->
+  <div class="section" id="step2">
+
+    <!-- Loading -->
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <div class="loading-title">Gemini is reading the image…</div>
+      <div class="loading-sub">Extracting test names, values, units and reference ranges</div>
+    </div>
+
+    <div id="verifyContent" style="display:none;">
+
+      <!-- Readings table -->
+      <div class="card">
+        <div class="card-head" style="display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div class="card-title">Extracted readings</div>
+            <div class="card-sub" id="confSummary"></div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="alertBanner"></div>
+          <table class="readings-table">
+            <thead>
+              <tr>
+                <th style="width:36%">Test</th>
+                <th style="width:14%">Result</th>
+                <th style="width:13%">Units</th>
+                <th style="width:18%">Reference range</th>
+                <th style="width:10%">Status</th>
+                <th style="width:9%">Confidence</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Patient details — nurse fills this -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Patient details</div>
+          <div class="card-sub">Fill in before generating the report</div>
+        </div>
+        <div class="card-body">
+          <div class="patient-form">
+            <div class="field">
+              <label for="p_name">Patient name</label>
+              <input type="text" id="p_name" placeholder="Full name">
+            </div>
+            <div class="field">
+              <label for="p_age">Age</label>
+              <input type="text" id="p_age" placeholder="e.g. 34 Years">
+            </div>
+            <div class="field">
+              <label for="p_gender">Gender</label>
+              <select id="p_gender">
+                <option value="">— select —</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="p_doctor">Ref. doctor</label>
+              <input type="text" id="p_doctor" placeholder="Dr. Name">
+            </div>
+            <div class="field">
+              <label for="p_sample">Sample type</label>
+              <input type="text" id="p_sample" placeholder="e.g. WB - EDTA">
+            </div>
+            <div class="field">
+              <label for="p_date">Report date</label>
+              <input type="date" id="p_date">
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-success" onclick="generateReport()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+              Generate report
+            </button>
+            <button class="btn btn-outline" onclick="goBack()">← Re-upload</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Step 3: Report ─────────────────────────────────────────────────── -->
+  <div class="section" id="step3">
+    <div class="card">
+      <div class="card-head" style="display:flex; align-items:center;">
+        <div>
+          <div class="card-title">Report ready</div>
+          <div class="card-sub">Review then print or save as PDF</div>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button class="btn btn-primary" onclick="printReport()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print / Save PDF
+          </button>
+          <button class="btn btn-outline" onclick="goToStep(1)">↩ New report</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-wrapper">
+      <div id="reportOutput"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

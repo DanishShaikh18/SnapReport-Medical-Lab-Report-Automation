@@ -1,0 +1,8 @@
+.env
+PLAN.md
+/venv
+/.vscode
+venv
+test_key.py
+
+/templates
