@@ -9,40 +9,61 @@ Built to reduce the manual transcription step that happens in most Indian diagno
 ## How it works
 
 1. Upload a photo of the machine screen or existing report
-2. Gemini 2.0 Flash reads all test names, values, units, and reference ranges
+2. Gemini 3.5 Flash reads all test names, values, units, and reference ranges
 3. Low-confidence values get flagged for nurse review
 4. Nurse fills in patient name, age, gender, doctor, date
 5. Report renders and prints — browser handles PDF via Ctrl+P
 
-No backend. No database. No build step. Runs entirely in the browser.
+No database. No complex build steps. Uses a lightweight Python backend for secure AI API access.
 
 ---
 
-## Stack
+## AI Stack & Tech Stack
 
-| Part | What |
+| Part | Technology Used |
 |---|---|
-| Vision / OCR | Gemini 2.0 Flash (via Google AI Studio API) |
-| Frontend | Plain HTML + vanilla JS (ES modules) |
-| PDF | Browser print dialog |
-| Templates | JSON files — one per hospital |
+| **AI / Vision OCR** | **Google Gemini 3.5 Flash** (via `google-genai` SDK on Vertex AI) |
+| **Fallback OCR** | **Tesseract.js** (local browser fallback) |
+| **Backend** | **Python (FastAPI)** |
+| **Frontend** | **Plain HTML + Vanilla JS** (ES modules) |
+| **Templating** | **JSON files** |
+| **Authentication** | **GCP Application Default Credentials (ADC)** |
+
+---
+
+## AI Engineering Skills Showcased
+
+This project was built demonstrating several core AI Engineering practices:
+- **Prompt Engineering for Structured Outputs:** Forcing a Vision-Language Model (VLM) to parse messy spatial data and strictly adhere to a complex JSON schema without hallucinating fields.
+- **Human-in-the-Loop (HITL) Design:** AI extractions are assigned confidence scores. Anything below 85% is flagged in the UI for mandatory human review to ensure medical safety.
+- **Graceful AI Degradation:** If the cloud-based AI API fails or rate limits, the system seamlessly falls back to a local, traditional OCR model (Tesseract.js).
+- **Secure AI Architecture:** Abstracting the LLM calls into a FastAPI backend to utilize Application Default Credentials (ADC), keeping credentials completely out of the frontend.
 
 ---
 
 ## Setup
 
-You need a free Gemini API key from [aistudio.google.com](https://aistudio.google.com/app/apikey).
+This project uses Google Cloud Vertex AI via Application Default Credentials (ADC). No manual API keys are required.
 
-Clone and serve locally — a server is required because ES modules don't work over `file://`.
+Clone, setup the virtual environment, and run the backend server:
 
 ```bash
 git clone https://github.com/yourname/snapreport
 cd snapreport
-python -m http.server 8000
+
+# Authenticate with Google Cloud
+gcloud auth application-default login
+
+# Setup Python environment
+python -m venv venv
+.\venv\Scripts\activate  # Windows
+# source venv/bin/activate # Mac/Linux
+pip install -r requirements.txt
+
+# Run the backend and frontend server
+uvicorn main:app --reload --port 8000
 # open http://localhost:8000
 ```
-
-Enter your API key in the settings (⚙ icon in header). It's stored in `sessionStorage` — never sent anywhere except directly to Google's API.
 
 ---
 
