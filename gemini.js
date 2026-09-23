@@ -1,6 +1,3 @@
-import { GoogleGenAI } from "https://esm.run/@google/genai";
-
-let aiClient = null;
 let _usedFallback = false;
 
 /**
@@ -11,27 +8,17 @@ export function didUseFallback() {
     return _usedFallback;
 }
 
-/**
- * Initialize Gemini client with API key.
- * Call this once when the nurse enters their key.
- */
-export function initGemini(apiKey) {
-    aiClient = new GoogleGenAI({ apiKey });
-}
-
 // ─── Friendly error mapper ───────────────────────────────────────────────────
 function friendlyError(err) {
     const msg = (err?.message || err?.toString() || "").toLowerCase();
     const status = err?.status || err?.httpStatusCode || 0;
 
-    if (status === 401 || msg.includes("401") || msg.includes("api key not valid") || msg.includes("invalid api key"))
-        return "Invalid API key. Check your key in Settings ⚙";
+    if (status === 500 || msg.includes("500") || msg.includes("genai client not initialized"))
+        return "Backend Gemini client not initialized. Check GCP credentials.";
     if (status === 429 || msg.includes("429") || msg.includes("resource has been exhausted") || msg.includes("too many requests"))
         return "Too many requests. Wait 30 seconds and try again.";
-    if (status === 403 || msg.includes("403") || msg.includes("permission denied") || msg.includes("access denied"))
-        return "API access denied. Make sure Gemini API is enabled in your project.";
     if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network") || msg.includes("err_internet"))
-        return "No internet connection. Check your network.";
+        return "No internet connection or backend server is down. Check your network.";
     return null; // unknown — will trigger fallback
 }
 
@@ -126,81 +113,31 @@ function parseOcrText(raw) {
 export async function extractReadings(imageBase64, mimeType) {
     _usedFallback = false;
 
-    // ── Try Gemini first ─────────────────────────────────────────────────
-    if (aiClient) {
-        try {
-            const prompt = `You are a medical lab report OCR system. Analyze this image carefully.
+    // ── Try Backend API first ─────────────────────────────────────────────────
+    try {
+        const response = await fetch('/api/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image_base64: imageBase64,
+                mime_type: mimeType
+            })
+        });
 
-Extract every test reading visible. Return ONLY a JSON object in exactly this shape:
-
-{
-  "lab_name": "name of the lab or hospital if visible, else empty string",
-  "certificate_no": "certificate or report number if visible, else empty string",
-  "tests": [
-    {
-      "section": "section heading (e.g. Hematology, Differential Leukocyte Counts). Use this when the row is a group header, not a test. Leave empty string for actual tests.",
-      "name": "full test name exactly as shown",
-      "method": "method or analyzer info shown below the test name, else empty string",
-      "value": "the numeric result as a string, exactly as shown (e.g. '6.1', '00', '5.11')",
-      "unit": "unit exactly as shown (e.g. 'x1000/μL', 'g/dL', '%')",
-      "reference_range": "reference range exactly as shown (e.g. '4-10', '13.0-17.0', '150-450')",
-      "confidence": 0.95
-    }
-  ]
-}
-
-Rules:
-- confidence is 0.0 to 1.0. Use < 0.85 when the value is unclear, blurry, or ambiguous.
-- For section/group header rows (no numeric value), set "section" to the heading text and leave name, value, unit, reference_range as empty strings.
-- For actual test rows, leave "section" as empty string.
-- Include ALL tests, even those with value "00" or "0".
-- Preserve units exactly — do not convert or simplify.
-- Do not infer or guess values. If a value is unreadable, set value to "" and confidence to 0.0.
-- Return ONLY the JSON. No markdown, no explanation, no code fences.`;
-
-            const response = await aiClient.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: [
-                    { text: prompt },
-                    {
-                        inlineData: {
-                            data: imageBase64,
-                            mimeType: mimeType,
-                        },
-                    },
-                ],
-                config: {
-                    temperature: 0.1,
-                    responseMimeType: "application/json",
-                },
-            });
-
-            const raw = response.text.trim();
-
-            try {
-                return JSON.parse(raw);
-            } catch {
-                // Gemini occasionally wraps in fences — strip and retry
-                const cleaned = raw
-                    .replace(/^```json\s*/i, "")
-                    .replace(/^```\s*/i, "")
-                    .replace(/```\s*$/i, "")
-                    .trim();
-                try {
-                    return JSON.parse(cleaned);
-                } catch {
-                    // JSON parse failed — fall through to Tesseract
-                }
-            }
-        } catch (geminiErr) {
-            // Check for hard errors that should NOT fallback (give user a clear message)
-            const friendly = friendlyError(geminiErr);
-            if (friendly) {
-                throw new Error(friendly);
-            }
-            // Unknown Gemini error → fall through to Tesseract
-            console.warn("Gemini failed, falling back to Tesseract:", geminiErr);
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || `Server error: ${response.status}`);
         }
+
+        return await response.json();
+    } catch (apiErr) {
+        // Check for hard errors that should NOT fallback (give user a clear message)
+        const friendly = friendlyError(apiErr);
+        if (friendly) {
+            throw new Error(friendly);
+        }
+        // Unknown error → fall through to Tesseract
+        console.warn("Backend API failed, falling back to Tesseract:", apiErr);
     }
 
     // ── Fallback: Tesseract.js ───────────────────────────────────────────

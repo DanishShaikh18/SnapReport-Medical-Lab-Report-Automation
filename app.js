@@ -1,4 +1,4 @@
-import { initGemini, extractReadings, didUseFallback } from "./gemini.js";
+import { extractReadings, didUseFallback } from "./gemini.js";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let selectedFile = null;
@@ -8,87 +8,10 @@ let activeTemplate = null;  // loaded from templates/*.json
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
     loadTemplate("templates/default.json");
-    restoreApiKey();
     setupUploadZone();
-    setupSettingsModal();
 });
 
-// ─── API Key ──────────────────────────────────────────────────────────────────
-function restoreApiKey() {
-    const saved = sessionStorage.getItem("gemini_api_key");
-    if (saved) {
-        initGemini(saved);
-        updateKeyStatus(true);
-    } else {
-        // Fallback: try loading from .env for local development
-        fetch('.env').then(res => res.text()).then(text => {
-            const match = text.match(/GEMINI_API_KEY=(.*)/);
-            if (match && match[1]) {
-                const key = match[1].trim();
-                sessionStorage.setItem("gemini_api_key", key);
-                initGemini(key);
-                updateKeyStatus(true);
-            }
-        }).catch(() => { /* ignore */ });
-    }
-}
 
-function updateKeyStatus(hasKey) {
-    const dot = document.getElementById("keyStatusDot");
-    const label = document.getElementById("keyStatusLabel");
-    if (hasKey) {
-        dot.className = "status-dot green";
-        label.textContent = "API key set";
-    } else {
-        dot.className = "status-dot red";
-        label.textContent = "No API key";
-    }
-}
-
-// ─── Settings modal ──────────────────────────────────────────────────────────
-function setupSettingsModal() {
-    const overlay = document.getElementById("settingsOverlay");
-    const modal = document.getElementById("settingsModal");
-    const gearBtn = document.getElementById("settingsBtn");
-    const closeBtn = document.getElementById("settingsClose");
-    const saveBtn = document.getElementById("settingsSave");
-    const input = document.getElementById("settingsApiKey");
-
-    gearBtn.addEventListener("click", () => {
-        const saved = sessionStorage.getItem("gemini_api_key") || "";
-        // Show masked version if key exists
-        input.value = saved;
-        overlay.classList.add("open");
-        modal.classList.add("open");
-        setTimeout(() => input.focus(), 100);
-    });
-
-    function closeModal() {
-        overlay.classList.remove("open");
-        modal.classList.remove("open");
-    }
-
-    closeBtn.addEventListener("click", closeModal);
-    overlay.addEventListener("click", closeModal);
-
-    saveBtn.addEventListener("click", () => {
-        const key = input.value.trim();
-        if (key) {
-            sessionStorage.setItem("gemini_api_key", key);
-            initGemini(key);
-            updateKeyStatus(true);
-        } else {
-            sessionStorage.removeItem("gemini_api_key");
-            updateKeyStatus(false);
-        }
-        closeModal();
-    });
-
-    // Allow Enter key to save
-    input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") saveBtn.click();
-    });
-}
 
 // ─── Template loader ──────────────────────────────────────────────────────────
 async function loadTemplate(path) {
@@ -178,11 +101,7 @@ function showErrorBanner(msg, type = "red") {
 
 // ─── Extraction ───────────────────────────────────────────────────────────────
 window.startExtraction = async function () {
-    const apiKey = sessionStorage.getItem("gemini_api_key");
-    if (!apiKey) return showToast("Please set your Gemini API key in Settings ⚙");
     if (!selectedFile) return showToast("Please upload an image first.");
-
-    initGemini(apiKey);
     goToStep(2);
     setLoading(true);
 

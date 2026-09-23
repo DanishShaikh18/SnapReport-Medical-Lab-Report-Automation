@@ -67,100 +67,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F1F3F4; colo
   border-radius: 20px;
 }
 
-/* Key status indicator */
-.key-status {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 500;
-  color: var(--gray-600);
-}
-.status-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.status-dot.green { background: var(--green); }
-.status-dot.red   { background: var(--red); }
 
-/* Settings gear button */
-.settings-btn {
-  background: none; border: none;
-  width: 32px; height: 32px;
-  border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  color: var(--gray-600);
-  transition: background .15s, color .15s;
-}
-.settings-btn:hover {
-  background: var(--gray-100);
-  color: var(--gray-800);
-}
-.settings-btn svg { width: 18px; height: 18px; }
 
-/* ── Settings modal ─────────────────────────────────────────────────────── */
-.settings-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.35);
-  z-index: 1000;
-  opacity: 0; pointer-events: none;
-  transition: opacity .2s;
-}
-.settings-overlay.open { opacity: 1; pointer-events: auto; }
-.settings-modal {
-  position: fixed;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%) scale(.95);
-  background: var(--white);
-  border-radius: 12px;
-  box-shadow: 0 8px 40px rgba(0,0,0,.18);
-  z-index: 1001;
-  width: 420px; max-width: 92vw;
-  opacity: 0; pointer-events: none;
-  transition: opacity .2s, transform .2s;
-}
-.settings-modal.open {
-  opacity: 1; pointer-events: auto;
-  transform: translate(-50%, -50%) scale(1);
-}
-.settings-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 22px 12px;
-  border-bottom: 1px solid var(--gray-200);
-}
-.settings-title { font-size: 15px; font-weight: 600; }
-.settings-close {
-  background: none; border: none;
-  font-size: 18px; color: var(--gray-400);
-  cursor: pointer; padding: 4px;
-  line-height: 1;
-}
-.settings-close:hover { color: var(--gray-800); }
-.settings-body { padding: 20px 22px 22px; }
-.settings-label {
-  font-size: 12px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .5px;
-  color: var(--gray-400);
-  margin-bottom: 6px;
-}
-.settings-input {
-  width: 100%;
-  border: 1px solid var(--gray-200); border-radius: 6px;
-  padding: 9px 12px; font-size: 13px;
-  font-family: 'Courier New', monospace;
-  outline: none; transition: border-color .2s;
-}
-.settings-input:focus {
-  border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(13,115,119,.08);
-}
-.settings-note {
-  font-size: 11px; color: var(--gray-400); margin-top: 6px;
-}
-.settings-note a { color: var(--teal); }
-.settings-actions {
-  display: flex; justify-content: flex-end; gap: 8px;
-  margin-top: 16px;
-}
+
 
 /* ── Toast ──────────────────────────────────────────────────────────────── */
 .toast {
@@ -444,7 +353,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F1F3F4; colo
 /* ── Print ──────────────────────────────────────────────────────────────── */
 @media print {
   .header, .steps, #step1, #step2, .card-head .btn, .btn-row,
-  .settings-overlay, .settings-modal, .toast { display: none !important; }
+  .toast { display: none !important; }
   body { background: white; }
   .app { padding: 0; max-width: 100%; }
   #step3 { display: block !important; }
@@ -458,7 +367,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F1F3F4; colo
   .step-bar span.label { display: none; }
   .header { padding: 0 16px; }
   .app { padding: 16px 12px; }
-  .key-status span:not(.status-dot) { display: none; }
 }
 </style>
 </head>
@@ -473,39 +381,10 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F1F3F4; colo
 
   <div class="header-right">
     <span class="header-tag">● Gemini 2.5 Flash</span>
-    <div class="key-status">
-      <span class="status-dot red" id="keyStatusDot"></span>
-      <span id="keyStatusLabel">No API key</span>
-    </div>
-    <button class="settings-btn" id="settingsBtn" title="Settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-    </button>
   </div>
 </div>
 
-<!-- Settings modal overlay -->
-<div class="settings-overlay" id="settingsOverlay"></div>
-<div class="settings-modal" id="settingsModal">
-  <div class="settings-head">
-    <span class="settings-title">Settings</span>
-    <button class="settings-close" id="settingsClose">✕</button>
-  </div>
-  <div class="settings-body">
-    <div class="settings-label">Gemini API Key</div>
-    <input type="password" class="settings-input" id="settingsApiKey" placeholder="Paste your API key here" autocomplete="off">
-    <div class="settings-note">
-      Free at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>
-      — stored in this browser session only
-    </div>
-    <div class="settings-actions">
-      <button class="btn btn-outline btn-sm" id="settingsClose2" onclick="document.getElementById('settingsClose').click()">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="settingsSave">Save key</button>
-    </div>
-  </div>
-</div>
+
 
 <div class="app">
 
